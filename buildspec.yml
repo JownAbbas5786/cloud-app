@@ -1,0 +1,19 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password | docker login --username AWS --password-stdin 434000704945.dkr.ecr.eu-north-1.amazonaws.com
+  build:
+    commands:
+      - docker-compose build
+      - docker tag myapp-backend:latest 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-backend:latest
+      - docker tag myapp-frontend:latest 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-frontend:latest
+  post_build:
+    commands:
+      - docker push 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-backend:latest
+      - docker push 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-frontend:latest
+artifacts:
+  files:
+    - docker-compose.yml
+    - .ebextensions/**
