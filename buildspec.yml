@@ -1,19 +1,68 @@
 version: 0.2
+
 phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
-      - aws ecr get-login-password | docker login --username AWS --password-stdin 434000704945.dkr.ecr.eu-north-1.amazonaws.com
+      - $(aws ecr get-login --no-include-email --region eu-north-1)
+      - REPOSITORY_URI_BACKEND=434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp1-backend
+      - REPOSITORY_URI_FRONTEND=434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp1-frontend
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+
   build:
     commands:
-      - docker-compose build
-      - docker tag myapp-backend:latest 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-backend:latest
-      - docker tag myapp-frontend:latest 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-frontend:latest
+      - echo Building backend...
+      - docker build -t $REPOSITORY_URI_BACKEND:$IMAGE_TAG ./backend
+      - docker tag $REPOSITORY_URI_BACKEND:$IMAGE_TAG $REPOSITORY_URI_BACKEND:latest
+
+      - echo Building frontend...
+      - docker build -t $REPOSITORY_URI_FRONTEND:$IMAGE_TAG ./frontend
+      - docker tag $REPOSITORY_URI_FRONTEND:$IMAGE_TAG $REPOSITORY_URI_FRONTEND:latest
+
   post_build:
     commands:
-      - docker push 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-backend:latest
-      - docker push 434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp-frontend:latest
+      - echo Pushing backend...
+      - docker push $REPOSITORY_URI_BACKEND:$IMAGE_TAG
+      - docker push $REPOSITORY_URI_BACKEND:latest
+
+      - echo Pushing frontend...
+      - docker push $REPOSITORY_URI_FRONTEND:$IMAGE_TAG
+      - docker push $REPOSITORY_URI_FRONTEND:latest
+
+      - echo Writing Dockerrun.aws.json...
+      - |
+        cat > Dockerrun.aws.json <<EOF
+        {
+          "AWSEBDockerrunVersion": 2,
+          "containerDefinitions": [
+            {
+              "name": "backend",
+              "image": "$REPOSITORY_URI_BACKEND:latest",
+              "essential": true,
+              "memory": 512,
+              "portMappings": [
+                {
+                  "hostPort": 5000,
+                  "containerPort": 5000
+                }
+              ]
+            },
+            {
+              "name": "frontend",
+              "image": "$REPOSITORY_URI_FRONTEND:latest",
+              "essential": true,
+              "memory": 512,
+              "portMappings": [
+                {
+                  "hostPort": 80,
+                  "containerPort": 80
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+
 artifacts:
   files:
-    - docker-compose.yml
-    - .ebextensions/**
+    - Dockerrun.aws.json
