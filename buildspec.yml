@@ -1,10 +1,9 @@
 version: 0.2
-
 phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
-      - $(aws ecr get-login --no-include-email --region eu-north-1)
+      - aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 434000704945.dkr.ecr.eu-north-1.amazonaws.com
       - REPOSITORY_URI_BACKEND=434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp1-backend
       - REPOSITORY_URI_FRONTEND=434000704945.dkr.ecr.eu-north-1.amazonaws.com/myapp1-frontend
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
